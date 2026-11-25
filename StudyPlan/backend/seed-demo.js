@@ -1,8 +1,6 @@
 // Carga reproducible de datos ficticios para la exposición local.
 // No usar en producción. No borra ni reemplaza usuarios ni datos existentes.
 import {randomBytes,scryptSync} from 'node:crypto';
-import {db} from './database.js';
-if(process.env.NODE_ENV==='production'){console.error('La carga demo no está permitida en producción.');db.close();process.exit(1)}
 const clave='StudyPlanDemo2026!';
 const cuentas=[
  ['Administrador Demo','admin@studyplan.test','estudiante',1],
@@ -34,11 +32,13 @@ const actividades=[
  [2,'Acta de constitución','Trabajo',-5,'Baja','Completado']
 ];
 function fecha(dias){const d=new Date();d.setDate(d.getDate()+dias);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
-db.exec('CREATE TABLE IF NOT EXISTS cargas_demo (nombre TEXT PRIMARY KEY, fecha TEXT NOT NULL)');
+export function cargarDemo(db){
+ if(process.env.NODE_ENV==='production')return false;
+ db.exec('CREATE TABLE IF NOT EXISTS cargas_demo (nombre TEXT PRIMARY KEY, fecha TEXT NOT NULL)');
 try{
  db.exec('BEGIN');
  if(db.prepare('SELECT nombre FROM cargas_demo WHERE nombre=?').get('studyplan-v1')){
-  db.exec('COMMIT');console.log('La demostración ya fue instalada. Se conservan todos los cambios y contraseñas.'); 
+  db.exec('COMMIT');return false; 
  }else{
   // Si alguno de los correos ya existe, se cancela toda la operación.
   for(const [,email] of cuentas)if(db.prepare('SELECT id FROM usuarios WHERE email=?').get(email))throw new Error('Correo demo ya existente: '+email+'. No se modificó ninguna cuenta.');
@@ -61,6 +61,7 @@ try{
   db.prepare('INSERT INTO cargas_demo VALUES(?,?)').run('studyplan-v1',new Date().toISOString());
   db.exec('COMMIT');
   console.log('Demostración creada: 1 administrador, 2 docentes, 6 estudiantes, 15 calificaciones, 4 cursos y 10 actividades.');
-  console.log('Consulta GUIA_DEMO.md para las cuentas y el recorrido de pruebas.');
+  return true;
  }
-}catch(e){if(db.isTransaction)db.exec('ROLLBACK');console.error(e.message);process.exitCode=1}finally{db.close()}
+}catch(e){if(db.isTransaction)db.exec('ROLLBACK');throw e}
+}
