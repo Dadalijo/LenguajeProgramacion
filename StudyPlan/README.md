@@ -37,3 +37,12 @@ POST /api/registro, /api/login, /api/logout; GET /api/me; GET/POST /api/cursos y
 
 ## Datos y límites
 Cada usuario accede únicamente a sus cursos y actividades. Las tablas son usuarios, sesiones, cursos y actividades. Los datos de la versión anterior basada en LocalStorage no se migran automáticamente. Prototipo académico; antes de exponerlo a Internet requiere pruebas, límites de intentos de autenticación y revisión de seguridad. Proyecto desarrollado con asistencia de IA.
+
+## Inicio rápido en Windows
+Con Node instalado, ejecutar INICIAR.bat. Instala dependencias, compila e inicia el servidor. Si el navegador abre antes del servidor, actualizar la página.
+
+## Pruebas
+Ejecutar `npm test` después de `npm install`. Las pruebas de integración usan SQLite en memoria y verifican registro, sesión, CRUD, fechas inválidas y separación de usuarios. No modifican los datos reales.
+
+## Comprobación
+`GET /api/health` devuelve `{ "ok": true }` si el servidor está disponible. Se incluye límite básico de intentos de autenticación; para un despliegue público se requiere revisión adicional.
