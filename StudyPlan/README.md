@@ -9,11 +9,10 @@ Consulta [GUIA_DEMO.md](GUIA_DEMO.md) para instalar, iniciar, consultar las nuev
 ```bash
 npm install
 python -m pip install -r analisis/requirements.txt
-npm run demo
 npm run dev:completo
 ```
 
-La carga demo es local y opcional; crea un administrador, dos docentes y seis estudiantes, con 15 calificaciones, cuatro cursos y diez actividades. No reemplaza usuarios existentes. Las credenciales de prueba son públicas exclusivamente para uso local. Para el entorno no demo se mantiene npm run crear-admin.
+La carga demo es automática al primer arranque local; crea un administrador, dos docentes y seis estudiantes, con 15 calificaciones, cuatro cursos y diez actividades. No reemplaza usuarios existentes. Las credenciales de prueba son públicas exclusivamente para uso local. Para desactivar la carga, configurar STUDYPLAN_DEMO=0 antes de arrancar o NODE_ENV=production. No reutilizar una base demo en producción. Se mantiene npm run crear-admin para cuentas propias.
 
 ## Tecnologías
 Vue 3, Vue Router, Bootstrap 5, Vite, Express 5, SQLite, Python, Flask, pandas, NumPy y SWI-Prolog. Autenticación con cookies HttpOnly, contraseñas con scrypt y control de acceso por roles en el servidor.
@@ -27,7 +26,7 @@ npm install
 python -m pip install -r analisis/requirements.txt
 npm run crear-admin
 ```
-El último comando solicita nombre, correo y contraseña del administrador local. No existen credenciales predeterminadas. Ejecutarlo una vez con un correo que no esté registrado. Las cuentas y actividades anteriores se conservan: la migración agrega campos y tablas sin borrar la base SQLite.
+El último comando solicita nombre, correo y contraseña del administrador local. Las credenciales de las cuentas ficticias están en GUIA_DEMO.md; las cuentas administrativas propias no tienen contraseña predeterminada. Ejecutarlo una vez con un correo que no esté registrado. Las cuentas y actividades anteriores se conservan: la migración agrega campos y tablas sin borrar la base SQLite.
 
 Terminal 1: `python analisis/app.py`
 Terminal 2: `npm run dev`
