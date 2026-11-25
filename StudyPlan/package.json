@@ -10,7 +10,8 @@
     "build": "npm run build -w frontend",
     "start": "npm run start -w backend",
     "test": "node --test backend/server.test.js",
-    "setup": "npm install && npm run build"
+    "setup": "npm install && npm run build",
+    "crear-admin": "node backend/crear-admin.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
