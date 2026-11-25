@@ -49,3 +49,10 @@ Ejecutar `npm test` después de `npm install`. Las pruebas de integración usan 
 
 ## Demostración y nuevas herramientas
 En una cuenta sin cursos, abrir Resumen y pulsar Cargar demostración. Se guardan cuatro cursos y diez actividades en SQLite con fechas relativas al día actual. La carga no sobrescribe información y se rechaza si ya existen cursos. El centro de alertas muestra actividades vencidas y próximas en tres días; las alertas son internas, no correos ni notificaciones con la aplicación cerrada. El planificador permite cambiar estados, el calendario incluye agenda diaria y Actividades exporta el listado filtrado como CSV. Tras actualizar el repositorio ejecutar npm install para incorporar bootstrap-icons.
+
+## Proyecto final: Análisis Inteligente de Rendimiento Académico Estudiantil usando Programación Multiparadigma
+Se añade un motor Python 3.11+ con Flask, pandas y NumPy. Desde StudyPlan, instalar `python -m pip install -r analisis/requirements.txt`. En una terminal ejecutar `python analisis/app.py` y en otra `npm run dev`. Entrar en Rendimiento y pulsar Analizar datos de ejemplo o importar el CSV de analisis/datos/ejemplo.csv. El CSV contiene datos ficticios y el análisis no se guarda en SQLite. El servidor Flask escucha únicamente en localhost:5001.
+
+Paradigmas: funcional (funciones puras, filter, reduce), orientado a objetos (Registro y Analizador), lógico basado en reglas (condiciones de inferencia ordenadas, sin motor Prolog), imperativo (validación y procesamiento). Los umbrales 11, 14 y 75% son supuestos del prototipo, no normativa institucional ni predicción validada. NumPy calcula estadísticos descriptivos; pandas lee CSV y agrupa registros. La aprobación se calcula por registro, el riesgo por estudiante. Pruebas: desde analisis ejecutar `python -m unittest test_motor`.
+
+Referencias oficiales: https://docs.python.org/3/ ; https://numpy.org/doc/ ; https://pandas.pydata.org/docs/ ; https://flask.palletsprojects.com/ . Completar la bibliografía del curso con los materiales del docente y anexar capturas reales tras ejecutar el sistema.
