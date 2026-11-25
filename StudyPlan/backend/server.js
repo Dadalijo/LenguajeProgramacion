@@ -2,6 +2,11 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { db } from './database.js';
+import { cargarDemo } from './seed-demo.js';
+// Las cuentas y registros ficticios se crean al arrancar localmente, una sola vez.
+if(process.env.NODE_ENV!=='production' && process.env.NODE_ENV!=='test' && process.env.STUDYPLAN_TEST_DB!=='1' && process.env.STUDYPLAN_DEMO!=='0'){
+ try{cargarDemo(db)}catch(e){console.error('No se cargaron datos demo:',e.message)}
+}
 import { fileURLToPath } from 'node:url';
 const app=express();
 app.disable('x-powered-by');
@@ -87,5 +92,5 @@ const titulo=text(req.body?.titulo,100)||'Análisis académico';const fecha=new 
 app.use('/api',(req,res)=>fail(res,'Ruta no encontrada',404));
 app.use(express.static(fileURLToPath(new URL('../frontend/dist/',import.meta.url))));
 app.use((err,req,res,next)=>{console.error(err);fail(res,'Error del servidor',500)});
-const server=app.listen(Number(process.env.PORT||3000),()=>console.log('StudyPlan API: puerto '+server.address().port));
+const server=app.listen(Number(process.env.PORT||3000),process.env.HOST||'127.0.0.1',()=>console.log('StudyPlan API: puerto '+server.address().port));
 export {server};
