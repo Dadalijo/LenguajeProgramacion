@@ -24,3 +24,5 @@ CREATE TABLE IF NOT EXISTS historial_analisis(
 CREATE INDEX IF NOT EXISTS idx_registros_docente ON registros_academicos(docente_id);
 CREATE INDEX IF NOT EXISTS idx_historial_docente ON historial_analisis(docente_id);
 `);
+// Administradores separados del rol académico para conservar bases anteriores.
+if(!db.prepare('PRAGMA table_info(usuarios)').all().some(c=>c.name==='es_admin'))db.exec("ALTER TABLE usuarios ADD COLUMN es_admin INTEGER NOT NULL DEFAULT 0 CHECK(es_admin IN (0,1))");
