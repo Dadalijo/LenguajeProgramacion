@@ -2,6 +2,19 @@
 
 Análisis inteligente del rendimiento académico estudiantil usando programación multiparadigma. Prototipo universitario local para docentes, tutores y estudiantes.
 
+## Demostración lista para la exposición
+
+Consulta [GUIA_DEMO.md](GUIA_DEMO.md) para instalar, iniciar, consultar las nueve cuentas ficticias y seguir las 25 pruebas de aceptación. Si ya tienes Node.js y Python:
+
+```bash
+npm install
+python -m pip install -r analisis/requirements.txt
+npm run demo
+npm run dev:completo
+```
+
+La carga demo es local y opcional; crea un administrador, dos docentes y seis estudiantes, con 15 calificaciones, cuatro cursos y diez actividades. No reemplaza usuarios existentes. Las credenciales de prueba son públicas exclusivamente para uso local. Para el entorno no demo se mantiene npm run crear-admin.
+
 ## Tecnologías
 Vue 3, Vue Router, Bootstrap 5, Vite, Express 5, SQLite, Python, Flask, pandas, NumPy y SWI-Prolog. Autenticación con cookies HttpOnly, contraseñas con scrypt y control de acceso por roles en el servidor.
 
