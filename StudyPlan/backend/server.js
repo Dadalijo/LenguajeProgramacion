@@ -1,0 +1,31 @@
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
+import { db } from './database.js';
+import { fileURLToPath } from 'node:url';
+const app=express();
+app.use(express.json({limit:'32kb'}));app.use(cookieParser());
+const hash=t=>createHash('sha256').update(t).digest('hex');
+const passwordHash=(p,s)=>scryptSync(p,s,64).toString('hex');
+const text=(v,n=200)=>typeof v==='string'?v.trim().slice(0,n):'';
+const fail=(res,msg,status=400)=>res.status(status).json({error:msg});
+const cookie={httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',maxAge:7*86400000,path:'/'};
+function login(res,u){const token=randomBytes(32).toString('hex');db.prepare('DELETE FROM sesiones WHERE vence<?').run(Date.now());db.prepare('INSERT INTO sesiones VALUES(?,?,?)').run(hash(token),u.id,Date.now()+cookie.maxAge);res.cookie('studyplan',token,cookie).json({id:u.id,nombre:u.nombre,email:u.email})}
+app.post('/api/registro',(req,res)=>{const nombre=text(req.body.nombre),email=text(req.body.email).toLowerCase(),p=req.body.password;if(!nombre||!/^\S+@\S+\.\S+$/.test(email)||typeof p!=='string'||p.length<8||p.length>128)return fail(res,'Completa los datos. Contraseña de 8 a 128 caracteres.');if(db.prepare('SELECT id FROM usuarios WHERE email=?').get(email))return fail(res,'Correo registrado',409);const salt=randomBytes(16).toString('hex');const result=db.prepare('INSERT INTO usuarios(nombre,email,password) VALUES(?,?,?)').run(nombre,email,salt+':'+passwordHash(p,salt));login(res,{id:Number(result.lastInsertRowid),nombre,email})});
+app.post('/api/login',(req,res)=>{const u=db.prepare('SELECT * FROM usuarios WHERE email=?').get(text(req.body.email).toLowerCase()),p=req.body.password;if(!u||typeof p!=='string'||p.length>128)return fail(res,'Credenciales incorrectas',401);const [salt,key]=u.password.split(':');if(!timingSafeEqual(Buffer.from(key,'hex'),Buffer.from(passwordHash(p,salt),'hex')))return fail(res,'Credenciales incorrectas',401);login(res,u)});
+app.use('/api',(req,res,next)=>{const token=req.cookies.studyplan;const u=token&&db.prepare('SELECT u.id,u.nombre,u.email FROM sesiones s JOIN usuarios u ON u.id=s.usuario WHERE s.token=? AND s.vence>?').get(hash(token),Date.now());if(!u)return fail(res,'Inicia sesión',401);req.user=u;next()});
+app.get('/api/me',(req,res)=>res.json(req.user));
+app.post('/api/logout',(req,res)=>{db.prepare('DELETE FROM sesiones WHERE token=?').run(hash(req.cookies.studyplan));res.clearCookie('studyplan',{path:'/'}).json({ok:true})});
+app.get('/api/cursos',(req,res)=>res.json(db.prepare('SELECT id,nombre,docente FROM cursos WHERE usuario=? ORDER BY nombre').all(req.user.id)));
+app.post('/api/cursos',(req,res)=>{const n=text(req.body.nombre);if(!n)return fail(res,'Nombre obligatorio');const r=db.prepare('INSERT INTO cursos(usuario,nombre,docente) VALUES(?,?,?)').run(req.user.id,n,text(req.body.docente));res.status(201).json({id:Number(r.lastInsertRowid)})});
+app.put('/api/cursos/:id',(req,res)=>{const n=text(req.body.nombre);if(!n)return fail(res,'Nombre obligatorio');const r=db.prepare('UPDATE cursos SET nombre=?,docente=? WHERE id=? AND usuario=?').run(n,text(req.body.docente),req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
+app.delete('/api/cursos/:id',(req,res)=>{const c=db.prepare('SELECT id FROM cursos WHERE id=? AND usuario=?').get(req.params.id,req.user.id);if(!c)return fail(res,'No encontrado',404);if(db.prepare('SELECT id FROM actividades WHERE curso=?').get(c.id))return fail(res,'El curso tiene actividades asociadas',409);db.prepare('DELETE FROM cursos WHERE id=?').run(c.id);res.json({ok:true})});
+app.get('/api/actividades',(req,res)=>res.json(db.prepare('SELECT a.* FROM actividades a JOIN cursos c ON c.id=a.curso WHERE c.usuario=? ORDER BY a.fecha').all(req.user.id)));
+function actividad(req,res){const b=req.body,n=text(b.nombre),d=text(b.fecha),c=db.prepare('SELECT id FROM cursos WHERE id=? AND usuario=?').get(Number(b.curso)||0,req.user.id);if(!c||!n||!/^\d{4}-\d{2}-\d{2}$/.test(d)||!['Tarea','Examen','Trabajo','Exposición'].includes(b.tipo)||!['Alta','Media','Baja'].includes(b.prioridad)||!['Pendiente','En proceso','Completado'].includes(b.estado)){fail(res,'Datos de actividad inválidos');return null}return [c.id,n,b.tipo,d,b.prioridad,b.estado,text(b.descripcion,1000)]}
+app.post('/api/actividades',(req,res)=>{const v=actividad(req,res);if(!v)return;const r=db.prepare('INSERT INTO actividades(curso,nombre,tipo,fecha,prioridad,estado,descripcion) VALUES(?,?,?,?,?,?,?)').run(...v);res.status(201).json({id:Number(r.lastInsertRowid)})});
+app.put('/api/actividades/:id',(req,res)=>{const v=actividad(req,res);if(!v)return;const r=db.prepare('UPDATE actividades SET curso=?,nombre=?,tipo=?,fecha=?,prioridad=?,estado=?,descripcion=? WHERE id=? AND curso IN (SELECT id FROM cursos WHERE usuario=?)').run(...v,req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
+app.delete('/api/actividades/:id',(req,res)=>{const r=db.prepare('DELETE FROM actividades WHERE id=? AND curso IN (SELECT id FROM cursos WHERE usuario=?)').run(req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
+app.use('/api',(req,res)=>fail(res,'Ruta no encontrada',404));
+app.use(express.static(fileURLToPath(new URL('../frontend/dist/',import.meta.url))));
+app.use((err,req,res,next)=>{console.error(err);fail(res,'Error del servidor',500)});
+app.listen(process.env.PORT||3000,()=>console.log('StudyPlan API: puerto '+(process.env.PORT||3000)));
