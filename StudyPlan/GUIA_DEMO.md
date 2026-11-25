@@ -26,17 +26,16 @@ git pull origin main
 ```
 Si Git informa conflictos, no uses reset --hard: revisa tus cambios locales antes de continuar.
 
-## 3. Instalar y cargar datos
+## 3. Instalar e iniciar con datos incluidos
 Dentro de StudyPlan:
 ```bash
 npm install
 python -m pip install -r analisis/requirements.txt
-npm run demo
 npm run dev:completo
 ```
 Abre http://localhost:5173. Se ejecutan Vite (5173), Express (3000) y Flask (5001). Si 5173 está ocupado, usa la dirección que muestra Vite. Si Python no está disponible como python, inicia Flask mediante el comando correspondiente (por ejemplo, py analisis/app.py) en una terminal y npm run dev en otra.
 
-El comando demo genera la base SQLite local backend/data/studyplan.db y añade cuentas ficticias, 15 registros académicos (12 del docente y 3 de la tutora), cuatro cursos y diez actividades de Ana. No sobrescribe datos existentes. Una segunda ejecución no duplica ni restaura datos ni contraseñas: si ya se ejecutó, conserva los cambios. Si detecta un correo demo existente antes de la primera carga, cancela toda la carga; no borres cuentas reales para resolverlo.
+El primer inicio del backend genera automáticamente la base SQLite local backend/data/studyplan.db y añade cuentas ficticias, 15 registros académicos (12 del docente y 3 de la tutora), cuatro cursos y diez actividades de Ana. No sobrescribe datos existentes. Los siguientes inicios no duplican ni restaura datos ni contraseñas: si ya se ejecutó, conserva los cambios. Si detecta un correo demo existente antes de la primera carga, cancela toda la carga; no borres cuentas reales para resolverlo.
 
 ## 4. Cuentas de demostración
 Contraseña inicial de todas: **StudyPlanDemo2026!**
@@ -102,9 +101,11 @@ Desde StudyPlan, revisa primero git status. Añade únicamente los archivos de c
 ## 8. Solución de problemas
 - Motor de análisis no disponible: comprueba Flask en http://127.0.0.1:5001/health.
 - No abre la página: revisa la URL de Vite en terminal y que los tres procesos estén activos.
-- Contraseña incorrecta tras cambiarla: utiliza la nueva o restablécela desde administración; npm run demo no la reinicia.
+- Contraseña incorrecta tras cambiarla: utiliza la nueva o restablécela desde administración; reiniciar el servidor no la reinicia.
 - Puerto ocupado: cierra servidores anteriores y vuelve a iniciar.
 - No hay alertas esperadas: las fechas se generaron al instalar la demo; consulta el calendario o crea una entrega con fecha actual.
-- No hay datos en GitHub: SQLite es local. Se generan en cada computadora con npm run demo.
+- No hay datos en GitHub: SQLite es local. Se generan automáticamente en cada computadora al arrancar.
+
+La carga automática se deshabilita con STUDYPLAN_DEMO=0 o NODE_ENV=production. No reutilices una base demo para producción.
 
 La demostración no requiere alojamiento online. El autorregistro está deshabilitado y administración crea los usuarios.
