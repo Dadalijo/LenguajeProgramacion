@@ -1,15 +1,28 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
+import {scryptSync} from 'node:crypto';
 process.env.STUDYPLAN_TEST_DB='1';process.env.PORT='0';process.env.NODE_ENV='test';
 const {server}=await import('./server.js');
+const {db}=await import('./database.js');
+const salt='test-salt';db.prepare("INSERT INTO usuarios(nombre,email,password,rol,es_admin) VALUES(?,?,?,'estudiante',1)").run('Admin','admin@example.test',salt+':'+scryptSync('Password123',salt,64).toString('hex'));
 if(!server.listening)await once(server,'listening');
 const base='http://127.0.0.1:'+server.address().port+'/api';
 async function call(path,method='GET',body,cookie){const res=await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:res.status,data:await res.json(),cookie:res.headers.get('set-cookie')?.split(';')[0]}}
 test('Flujo académico y privacidad entre usuarios',async()=>{try{
 assert.equal((await call('/health')).status,200);
 assert.equal((await call('/cursos')).status,401);
-const a=await call('/registro','POST',{nombre:'Ana',email:'ana@example.test',password:'Password123'});assert.equal(a.status,200);assert.ok(a.cookie);
+assert.equal((await call('/registro','POST',{nombre:'Ana',email:'ana@example.test',password:'Password123'})).status,403);
+const admin=await call('/login','POST',{email:'admin@example.test',password:'Password123'});assert.equal(admin.data.rol,'admin');
+assert.equal((await call('/usuarios','POST',{nombre:'Ana',email:'ana@example.test',password:'Password123',rol:'estudiante'},admin.cookie)).status,201);
+const a=await call('/login','POST',{email:'ana@example.test',password:'Password123'});assert.equal(a.status,200);assert.ok(a.cookie);
+assert.equal((await call('/usuarios','GET',undefined,a.cookie)).status,403);
+assert.equal((await call('/registros','GET',undefined,a.cookie)).status,403);
+assert.equal((await call('/usuarios','POST',{nombre:'Docente',email:'doc@example.test',password:'Password123',rol:'docente'},admin.cookie)).status,201);
+const d=await call('/login','POST',{email:'doc@example.test',password:'Password123'});assert.equal(d.data.rol,'docente');
+assert.equal((await call('/cursos','GET',undefined,d.cookie)).status,403);
+const nota=await call('/registros','POST',{estudiante:'Ana',email:'ana@example.test',curso:'Matemática',nota:16,asistencia:95},d.cookie);assert.equal(nota.status,201);
+assert.equal((await call('/mis-notas','GET',undefined,a.cookie)).data.length,1);
 const c=await call('/cursos','POST',{nombre:'Matemática'},a.cookie);assert.equal(c.status,201);
 const tarea={curso:c.data.id,nombre:'Examen',tipo:'Examen',fecha:'2027-02-28',prioridad:'Alta',estado:'Pendiente'};
 const t=await call('/actividades','POST',tarea,a.cookie);assert.equal(t.status,201);
@@ -17,7 +30,9 @@ assert.equal((await call('/actividades','POST',{...tarea,fecha:'2027-02-30'},a.c
 assert.equal((await call('/actividades','GET',undefined,a.cookie)).data.length,1);
 assert.equal((await call('/actividades/'+t.data.id,'PUT',{...tarea,estado:'Completado'},a.cookie)).status,200);
 assert.equal((await call('/cursos/'+c.data.id,'DELETE',undefined,a.cookie)).status,409);
-const b=await call('/registro','POST',{nombre:'Luis',email:'luis@example.test',password:'Password123'});assert.equal(b.status,200);
+assert.equal((await call('/usuarios','POST',{nombre:'Luis',email:'luis@example.test',password:'Password123',rol:'estudiante'},admin.cookie)).status,201);
+const b=await call('/login','POST',{email:'luis@example.test',password:'Password123'});assert.equal(b.status,200);
+assert.equal((await call('/mis-notas','GET',undefined,b.cookie)).data.length,0);
 assert.equal((await call('/actividades','GET',undefined,b.cookie)).data.length,0);
 assert.equal((await call('/actividades/'+t.data.id,'DELETE',undefined,b.cookie)).status,404);
 assert.equal((await call('/cursos/'+c.data.id,'PUT',{nombre:'Otro'},b.cookie)).status,404);
