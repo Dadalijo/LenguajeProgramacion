@@ -1,58 +1,43 @@
 # StudyPlan
 
-Aplicativo web para organizar actividades académicas, cursos y fechas de entrega.
+Análisis inteligente del rendimiento académico estudiantil usando programación multiparadigma. Prototipo universitario local para docentes, tutores y estudiantes.
 
 ## Tecnologías
-Frontend: Vue 3, Vue Router, Bootstrap 5 y Vite. Backend: Node.js y Express 5. Base de datos: SQLite mediante node:sqlite. Autenticación: sesiones en SQLite, cookies HttpOnly y contraseñas con scrypt y salt.
+Vue 3, Vue Router, Bootstrap 5, Vite, Express 5, SQLite, Python, Flask, pandas, NumPy y SWI-Prolog. Autenticación con cookies HttpOnly, contraseñas con scrypt y control de acceso por roles en el servidor.
 
-## Requisitos
-Node.js 22.13 o posterior (se recomienda Node 24 LTS) y npm.
+## Instalación y arranque
+Requisitos: Node.js 22.13+ (preferiblemente 24 LTS), Python 3.11+ y, para el paradigma lógico formal, SWI-Prolog con swipl disponible en PATH.
 
-## Ejecutar
-Desde la carpeta StudyPlan:
-
+Desde StudyPlan:
 ```bash
 npm install
-npm run dev
+python -m pip install -r analisis/requirements.txt
+npm run crear-admin
 ```
+El último comando solicita nombre, correo y contraseña del administrador local. No existen credenciales predeterminadas. Ejecutarlo una vez con un correo que no esté registrado. Las cuentas y actividades anteriores se conservan: la migración agrega campos y tablas sin borrar la base SQLite.
 
-Abrir http://localhost:5173. Vite redirige las solicitudes /api al servidor Express en el puerto 3000. Registrar una cuenta, crear un curso y registrar actividades. La base de datos se crea automáticamente en backend/data/studyplan.db.
+Terminal 1: `python analisis/app.py`
+Terminal 2: `npm run dev`
+Abrir http://localhost:5173. El frontend redirige /api a Express (3000); este consulta Flask (5001). Para iniciar la versión compilada, usar INICIAR.bat en Windows o npm run build y npm start con Flask ejecutándose aparte.
 
-## Compilar y ejecutar en un solo servidor
-```bash
-npm run build
-npm start
-```
-Abrir http://localhost:3000. Para producción utilizar HTTPS y NODE_ENV=production. GitHub Pages no ejecuta el backend; se necesita un servidor Node con almacenamiento persistente.
+## Roles y demostración
+- Administrador: entra con la cuenta creada por consola; crea docentes y estudiantes, consulta sus cuentas y restablece contraseñas. El autorregistro está deshabilitado.
+- Docente: gestiona registros de estudiantes y calificaciones; analiza el CSV de ejemplo, un CSV propio o sus registros; consulta historial, alertas de riesgo y exporta el diagnóstico CSV. El análisis se guarda por docente.
+- Estudiante: consulta notas vinculadas por correo, administra sus cursos, actividades, planificador, calendario y alertas. En una cuenta sin cursos, Cargar demostración crea cuatro cursos y diez actividades.
+Para demostrar la vinculación, crea un estudiante desde administración, ingresa como docente y registra una nota con el mismo correo del estudiante; luego inicia sesión como estudiante y abre Mis calificaciones. Usa datos ficticios. La importación CSV de análisis genera un informe, no crea cuentas ni publica calificaciones automáticamente.
 
-## Estructura
-- frontend/src/views: Inicio, Cursos, Actividades, Calendario y Progreso.
-- frontend/src/App.vue: autenticación y navegación.
-- frontend/src/store.js: estado compartido y cliente API.
-- backend/server.js: API REST y autenticación.
-- backend/database.js: creación de tablas y conexión SQLite.
+## Paradigmas
+Funcional: funciones puras, filter y reduce. Orientado a objetos: Registro y Analizador. Lógico: predicados de riesgo y consulta en analisis/reglas.pl mediante SWI-Prolog. Si swipl no está disponible, se utilizan reglas equivalentes en Python y la interfaz informa explícitamente ese modo. Para sustentar Prolog, instala SWI-Prolog, verifica swipl --version y comprueba que el resultado indique SWI-Prolog. No es un modelo predictivo validado.
 
-## API
-POST /api/registro, /api/login, /api/logout; GET /api/me; GET/POST /api/cursos y /api/actividades; PUT/DELETE /api/cursos/:id y /api/actividades/:id.
+pandas procesa el CSV y agrupa; NumPy calcula media, mediana y desviación poblacional. Umbrales 11, 14 y 75% son supuestos del prototipo; el riesgo se calcula por estudiante y la aprobación por registro. El CSV tiene columnas estudiante, curso, nota (0–20), asistencia (0–100).
 
-## Datos y límites
-Cada usuario accede únicamente a sus cursos y actividades. Las tablas son usuarios, sesiones, cursos y actividades. Los datos de la versión anterior basada en LocalStorage no se migran automáticamente. Prototipo académico; antes de exponerlo a Internet requiere pruebas, límites de intentos de autenticación y revisión de seguridad. Proyecto desarrollado con asistencia de IA.
-
-## Inicio rápido en Windows
-Con Node instalado, ejecutar INICIAR.bat. Instala dependencias, compila e inicia el servidor. Si el navegador abre antes del servidor, actualizar la página.
+## Estructura y datos
+frontend/src/views: módulos por perfil. backend/server.js: API REST y permisos; database.js: migraciones; crear-admin.js: cuenta administrativa local. analisis: motor, reglas, servicio Flask y CSV ficticio. Base local backend/data/studyplan.db: usuarios, sesiones, cursos, actividades, registros_academicos e historial_analisis. No se sube la base al repositorio.
 
 ## Pruebas
-Ejecutar `npm test` después de `npm install`. Las pruebas de integración usan SQLite en memoria y verifican registro, sesión, CRUD, fechas inválidas y separación de usuarios. No modifican los datos reales.
+npm test: pruebas de integración con SQLite en memoria, tres roles, CRUD y acceso a calificaciones. npm run build: compilación Vue. Desde analisis, python -m unittest test_motor. Las pruebas no modifican datos reales.
 
-## Comprobación
-`GET /api/health` devuelve `{ "ok": true }` si el servidor está disponible. Se incluye límite básico de intentos de autenticación; para un despliegue público se requiere revisión adicional.
+## Alcance y seguridad
+Prototipo para exposición local, no listo para producción. El administrador asigna cuentas sin verificación institucional; no existe matrícula por sección ni asignación formal de docentes a estudiantes. El docente solo consulta sus registros e informes, y el estudiante las notas asociadas a su correo. Las alertas se muestran en la interfaz, no por correo ni cuando está cerrada. Para producción se requieren verificación de identidades, autorización por matrícula, HTTPS, auditoría y políticas de tratamiento de datos. GitHub Pages no ejecuta Express ni Flask.
 
-## Demostración y nuevas herramientas
-En una cuenta sin cursos, abrir Resumen y pulsar Cargar demostración. Se guardan cuatro cursos y diez actividades en SQLite con fechas relativas al día actual. La carga no sobrescribe información y se rechaza si ya existen cursos. El centro de alertas muestra actividades vencidas y próximas en tres días; las alertas son internas, no correos ni notificaciones con la aplicación cerrada. El planificador permite cambiar estados, el calendario incluye agenda diaria y Actividades exporta el listado filtrado como CSV. Tras actualizar el repositorio ejecutar npm install para incorporar bootstrap-icons.
-
-## Proyecto final: Análisis Inteligente de Rendimiento Académico Estudiantil usando Programación Multiparadigma
-Se añade un motor Python 3.11+ con Flask, pandas y NumPy. Desde StudyPlan, instalar `python -m pip install -r analisis/requirements.txt`. En una terminal ejecutar `python analisis/app.py` y en otra `npm run dev`. Entrar en Rendimiento y pulsar Analizar datos de ejemplo o importar el CSV de analisis/datos/ejemplo.csv. El CSV contiene datos ficticios y el análisis no se guarda en SQLite. El servidor Flask escucha únicamente en localhost:5001.
-
-Paradigmas: funcional (funciones puras, filter, reduce), orientado a objetos (Registro y Analizador), lógico basado en reglas (condiciones de inferencia ordenadas, sin motor Prolog), imperativo (validación y procesamiento). Los umbrales 11, 14 y 75% son supuestos del prototipo, no normativa institucional ni predicción validada. NumPy calcula estadísticos descriptivos; pandas lee CSV y agrupa registros. La aprobación se calcula por registro, el riesgo por estudiante. Pruebas: desde analisis ejecutar `python -m unittest test_motor`.
-
-Referencias oficiales: https://docs.python.org/3/ ; https://numpy.org/doc/ ; https://pandas.pydata.org/docs/ ; https://flask.palletsprojects.com/ . Completar la bibliografía del curso con los materiales del docente y anexar capturas reales tras ejecutar el sistema.
+Proyecto desarrollado con asistencia de IA.
