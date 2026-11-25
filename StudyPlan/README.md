@@ -46,3 +46,6 @@ Ejecutar `npm test` después de `npm install`. Las pruebas de integración usan 
 
 ## Comprobación
 `GET /api/health` devuelve `{ "ok": true }` si el servidor está disponible. Se incluye límite básico de intentos de autenticación; para un despliegue público se requiere revisión adicional.
+
+## Demostración y nuevas herramientas
+En una cuenta sin cursos, abrir Resumen y pulsar Cargar demostración. Se guardan cuatro cursos y diez actividades en SQLite con fechas relativas al día actual. La carga no sobrescribe información y se rechaza si ya existen cursos. El centro de alertas muestra actividades vencidas y próximas en tres días; las alertas son internas, no correos ni notificaciones con la aplicación cerrada. El planificador permite cambiar estados, el calendario incluye agenda diaria y Actividades exporta el listado filtrado como CSV. Tras actualizar el repositorio ejecutar npm install para incorporar bootstrap-icons.
