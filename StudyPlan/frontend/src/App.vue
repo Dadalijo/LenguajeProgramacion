@@ -1,7 +1,7 @@
 <script setup>
 import {ref,onMounted,onUnmounted,computed} from 'vue';import {store,api,cargar,alertas} from './store';
 const listo=ref(false),registro=ref(false),error=ref(''),form=ref({nombre:'',email:'',password:''}),ocupado=ref(false),reloj=ref(0);
-const menus=[['/','Resumen','bi-grid-1x2'],['/cursos','Mis cursos','bi-book'],['/actividades','Actividades','bi-list-check'],['/planificador','Planificador','bi-kanban'],['/calendario','Calendario','bi-calendar3'],['/progreso','Progreso','bi-bar-chart'],['/alertas','Alertas','bi-bell']];
+const menus=[['/','Resumen','bi-grid-1x2'],['/analisis','Rendimiento','bi-graph-up-arrow'],['/cursos','Mis cursos','bi-book'],['/actividades','Actividades','bi-list-check'],['/planificador','Planificador','bi-kanban'],['/calendario','Calendario','bi-calendar3'],['/progreso','Progreso','bi-bar-chart'],['/alertas','Alertas','bi-bell']];
 const avisos=computed(()=>{reloj.value;return alertas().length});let timer;
 onMounted(async()=>{timer=setInterval(()=>reloj.value++,60000);try{store.usuario=await api('/me');await cargar()}catch(e){store.usuario=null}finally{listo.value=true}});
 onUnmounted(()=>clearInterval(timer));
