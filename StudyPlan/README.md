@@ -1,26 +1,39 @@
 # StudyPlan
 
-Aplicativo web para organizar actividades académicas y reducir el incumplimiento de entregas.
+Aplicativo web para organizar actividades académicas, cursos y fechas de entrega.
 
 ## Tecnologías
-- Vue.js 3: datos reactivos, directivas, propiedades calculadas y eventos.
-- Bootstrap 5: diseño responsivo, tarjetas, tablas, botones y formularios.
-- HTML, CSS y JavaScript.
-- LocalStorage: persistencia local.
+Frontend: Vue 3, Vue Router, Bootstrap 5 y Vite. Backend: Node.js y Express 5. Base de datos: SQLite mediante node:sqlite. Autenticación: sesiones en SQLite, cookies HttpOnly y contraseñas con scrypt y salt.
 
-## Módulos
-Inicio, cursos, actividades, calendario y progreso. Permite registrar, editar y eliminar cursos y actividades, filtrar tareas y controlar fechas y estados.
+## Requisitos
+Node.js 22.13 o posterior (se recomienda Node 24 LTS) y npm.
 
-## Archivos
-- index.html: plantilla Vue y componentes visuales Bootstrap.
-- app.js: lógica con Vue Options API.
-- styles.css: estilos personalizados.
+## Ejecutar
+Desde la carpeta StudyPlan:
 
-## Ejecución
-Abrir index.html en un navegador moderno con conexión a Internet para cargar las librerías CDN. No requiere Node.js ni instalación de paquetes. Registrar primero un curso y después las actividades.
+```bash
+npm install
+npm run dev
+```
 
-## Publicación
-GitHub Pages: Settings > Pages > Deploy from a branch > main > / (root). Ruta prevista: https://dadalijo.github.io/LenguajeProgramacion/StudyPlan/
+Abrir http://localhost:5173. Vite redirige las solicitudes /api al servidor Express en el puerto 3000. Registrar una cuenta, crear un curso y registrar actividades. La base de datos se crea automáticamente en backend/data/studyplan.db.
 
-## Limitaciones
-Los datos se guardan en el navegador, sin sincronización, autenticación ni base de datos externa. Los cursos con actividades asociadas no se pueden eliminar. Proyecto desarrollado con asistencia de IA.
+## Compilar y ejecutar en un solo servidor
+```bash
+npm run build
+npm start
+```
+Abrir http://localhost:3000. Para producción utilizar HTTPS y NODE_ENV=production. GitHub Pages no ejecuta el backend; se necesita un servidor Node con almacenamiento persistente.
+
+## Estructura
+- frontend/src/views: Inicio, Cursos, Actividades, Calendario y Progreso.
+- frontend/src/App.vue: autenticación y navegación.
+- frontend/src/store.js: estado compartido y cliente API.
+- backend/server.js: API REST y autenticación.
+- backend/database.js: creación de tablas y conexión SQLite.
+
+## API
+POST /api/registro, /api/login, /api/logout; GET /api/me; GET/POST /api/cursos y /api/actividades; PUT/DELETE /api/cursos/:id y /api/actividades/:id.
+
+## Datos y límites
+Cada usuario accede únicamente a sus cursos y actividades. Las tablas son usuarios, sesiones, cursos y actividades. Los datos de la versión anterior basada en LocalStorage no se migran automáticamente. Prototipo académico; antes de exponerlo a Internet requiere pruebas, límites de intentos de autenticación y revisión de seguridad. Proyecto desarrollado con asistencia de IA.
