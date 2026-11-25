@@ -16,12 +16,31 @@ const passwordHash=(p,s)=>scryptSync(p,s,64).toString('hex');
 const text=(v,n=200)=>typeof v==='string'?v.trim().slice(0,n):'';
 const fail=(res,msg,status=400)=>res.status(status).json({error:msg});
 const cookie={httpOnly:true,sameSite:'strict',secure:process.env.NODE_ENV==='production',maxAge:7*86400000,path:'/'};
-function login(res,u){const token=randomBytes(32).toString('hex');db.prepare('DELETE FROM sesiones WHERE vence<?').run(Date.now());db.prepare('INSERT INTO sesiones VALUES(?,?,?)').run(hash(token),u.id,Date.now()+cookie.maxAge);res.cookie('studyplan',token,cookie).json({id:u.id,nombre:u.nombre,email:u.email,rol:u.rol})}
-app.post('/api/registro',(req,res)=>{const nombre=text(req.body.nombre),email=text(req.body.email).toLowerCase(),p=req.body.password,rol=req.body.rol||'estudiante';if(!['estudiante','docente'].includes(rol))return fail(res,'Rol inválido');if(!nombre||!/^\S+@\S+\.\S+$/.test(email)||typeof p!=='string'||p.length<8||p.length>128)return fail(res,'Completa los datos. Contraseña de 8 a 128 caracteres.');if(db.prepare('SELECT id FROM usuarios WHERE email=?').get(email))return fail(res,'Correo registrado',409);const salt=randomBytes(16).toString('hex');const result=db.prepare('INSERT INTO usuarios(nombre,email,password,rol) VALUES(?,?,?,?)').run(nombre,email,salt+':'+passwordHash(p,salt),rol);login(res,{id:Number(result.lastInsertRowid),nombre,email,rol})});
+function login(res,u){const token=randomBytes(32).toString('hex');db.prepare('DELETE FROM sesiones WHERE vence<?').run(Date.now());db.prepare('INSERT INTO sesiones VALUES(?,?,?)').run(hash(token),u.id,Date.now()+cookie.maxAge);res.cookie('studyplan',token,cookie).json({id:u.id,nombre:u.nombre,email:u.email,rol:u.es_admin?'admin':u.rol})}
+app.post('/api/registro',(req,res)=>fail(res,'Solicita una cuenta al administrador.',403));
 app.post('/api/login',(req,res)=>{const u=db.prepare('SELECT * FROM usuarios WHERE email=?').get(text(req.body.email).toLowerCase()),p=req.body.password;if(!u||typeof p!=='string'||p.length>128)return fail(res,'Credenciales incorrectas',401);const [salt,key]=u.password.split(':');if(!timingSafeEqual(Buffer.from(key,'hex'),Buffer.from(passwordHash(p,salt),'hex')))return fail(res,'Credenciales incorrectas',401);login(res,u)});
-app.use('/api',(req,res,next)=>{const token=req.cookies.studyplan;const u=token&&db.prepare('SELECT u.id,u.nombre,u.email,u.rol FROM sesiones s JOIN usuarios u ON u.id=s.usuario WHERE s.token=? AND s.vence>?').get(hash(token),Date.now());if(!u)return fail(res,'Inicia sesión',401);req.user=u;next()});
+app.use('/api',(req,res,next)=>{const token=req.cookies.studyplan;const u=token&&db.prepare('SELECT u.id,u.nombre,u.email,CASE WHEN u.es_admin=1 THEN 'admin' ELSE u.rol END AS rol FROM sesiones s JOIN usuarios u ON u.id=s.usuario WHERE s.token=? AND s.vence>?').get(hash(token),Date.now());if(!u)return fail(res,'Inicia sesión',401);req.user=u;next()});
 app.get('/api/me',(req,res)=>res.json(req.user));
 app.post('/api/logout',(req,res)=>{db.prepare('DELETE FROM sesiones WHERE token=?').run(hash(req.cookies.studyplan));res.clearCookie('studyplan',{path:'/'}).json({ok:true})});
+// Administración: las cuentas académicas se crean exclusivamente aquí.
+const admin=(req,res,next)=>req.user.rol==='admin'?next():fail(res,'Acceso exclusivo para administración',403);
+app.get('/api/usuarios',admin,(req,res)=>res.json(db.prepare("SELECT id,nombre,email,rol FROM usuarios WHERE es_admin=0 ORDER BY rol,nombre").all()));
+app.post('/api/usuarios',admin,(req,res)=>{
+ const b=req.body||{},nombre=text(b.nombre),email=text(b.email).toLowerCase(),p=b.password,rol=b.rol;
+ if(!['estudiante','docente'].includes(rol)||!nombre||!/^\S+@\S+\.\S+$/.test(email)||typeof p!=='string'||p.length<8||p.length>128)return fail(res,'Completa nombre, correo, rol y contraseña de 8 a 128 caracteres.');
+ if(db.prepare('SELECT id FROM usuarios WHERE email=?').get(email))return fail(res,'Correo registrado',409);
+ const salt=randomBytes(16).toString('hex');
+ const result=db.prepare('INSERT INTO usuarios(nombre,email,password,rol) VALUES(?,?,?,?)').run(nombre,email,salt+':'+passwordHash(p,salt),rol);
+ res.status(201).json({id:Number(result.lastInsertRowid),nombre,email,rol});
+});
+app.put('/api/usuarios/:id/password',admin,(req,res)=>{
+ const p=req.body?.password;if(typeof p!=='string'||p.length<8||p.length>128)return fail(res,'Contraseña de 8 a 128 caracteres.');
+ const salt=randomBytes(16).toString('hex');
+ const u=db.prepare('UPDATE usuarios SET password=? WHERE id=? AND es_admin=0').run(salt+':'+passwordHash(p,salt),req.params.id);
+ if(!u.changes)return fail(res,'Usuario no encontrado',404);
+ db.prepare('DELETE FROM sesiones WHERE usuario=?').run(req.params.id);res.json({ok:true});
+});
+
 const docente=(req,res,next)=>req.user.rol==='docente'?next():fail(res,'Acceso exclusivo para docentes',403);
 const estudiante=(req,res,next)=>req.user.rol==='estudiante'?next():fail(res,'Acceso exclusivo para estudiantes',403);
 app.use(['/api/cursos','/api/actividades','/api/demo'],estudiante);
