@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "concurrently -k \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "build": "npm run build -w frontend",
-    "start": "npm run start -w backend"
+    "start": "npm run start -w backend",
+    "test": "node --test backend/server.test.js",
+    "setup": "npm install && npm run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
