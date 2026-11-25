@@ -1,30 +1,26 @@
 # StudyPlan
 
-Aplicativo web para la gestión y planificación de actividades académicas.
-
-## Problemática
-Los estudiantes pueden tener dificultades para organizar tareas, exámenes y fechas de entrega de diferentes cursos.
-
-## Objetivo
-Centralizar las actividades académicas y facilitar el seguimiento de su cumplimiento.
-
-## Funcionalidades
-- Panel de inicio con indicadores.
-- Registro, edición y eliminación de cursos.
-- Gestión de actividades, fechas, prioridades y estados.
-- Búsqueda y filtros.
-- Calendario mensual y estadísticas de progreso.
+Aplicativo web para organizar actividades académicas y reducir el incumplimiento de entregas.
 
 ## Tecnologías
-HTML5, CSS3, JavaScript y LocalStorage. Sin dependencias externas.
+- Vue.js 3: datos reactivos, directivas, propiedades calculadas y eventos.
+- Bootstrap 5: diseño responsivo, tarjetas, tablas, botones y formularios.
+- HTML, CSS y JavaScript.
+- LocalStorage: persistencia local.
+
+## Módulos
+Inicio, cursos, actividades, calendario y progreso. Permite registrar, editar y eliminar cursos y actividades, filtrar tareas y controlar fechas y estados.
+
+## Archivos
+- index.html: plantilla Vue y componentes visuales Bootstrap.
+- app.js: lógica con Vue Options API.
+- styles.css: estilos personalizados.
 
 ## Ejecución
-Descargar la carpeta StudyPlan y abrir index.html en un navegador moderno, o servirla mediante un servidor web estático. Primero registrar un curso y después una actividad.
+Abrir index.html en un navegador moderno con conexión a Internet para cargar las librerías CDN. No requiere Node.js ni instalación de paquetes. Registrar primero un curso y después las actividades.
 
 ## Publicación
-En GitHub, abrir Settings > Pages, seleccionar Deploy from a branch, rama main y carpeta / (root). La ruta esperada es https://dadalijo.github.io/LenguajeProgramacion/StudyPlan/ una vez completada la publicación.
+GitHub Pages: Settings > Pages > Deploy from a branch > main > / (root). Ruta prevista: https://dadalijo.github.io/LenguajeProgramacion/StudyPlan/
 
 ## Limitaciones
-Los datos permanecen en el navegador y no se sincronizan entre dispositivos. No incluye autenticación ni servidor de base de datos. No se permite eliminar cursos con actividades asociadas.
-
-Proyecto desarrollado con asistencia de IA.
+Los datos se guardan en el navegador, sin sincronización, autenticación ni base de datos externa. Los cursos con actividades asociadas no se pueden eliminar. Proyecto desarrollado con asistencia de IA.
