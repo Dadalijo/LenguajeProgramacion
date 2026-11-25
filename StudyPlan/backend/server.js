@@ -32,6 +32,18 @@ function actividad(req,res){const b=req.body||{},n=text(b.nombre),d=text(b.fecha
 app.post('/api/actividades',(req,res)=>{const v=actividad(req,res);if(!v)return;const r=db.prepare('INSERT INTO actividades(curso,nombre,tipo,fecha,prioridad,estado,descripcion) VALUES(?,?,?,?,?,?,?)').run(...v);res.status(201).json({id:Number(r.lastInsertRowid)})});
 app.put('/api/actividades/:id',(req,res)=>{const v=actividad(req,res);if(!v)return;const r=db.prepare('UPDATE actividades SET curso=?,nombre=?,tipo=?,fecha=?,prioridad=?,estado=?,descripcion=? WHERE id=? AND curso IN (SELECT id FROM cursos WHERE usuario=?)').run(...v,req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
 app.delete('/api/actividades/:id',(req,res)=>{const r=db.prepare('DELETE FROM actividades WHERE id=? AND curso IN (SELECT id FROM cursos WHERE usuario=?)').run(req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
+
+// Datos de demostración: únicamente en cuentas vacías, sin sobrescribir información.
+app.post('/api/demo',(req,res)=>{
+const uid=req.user.id;
+if(db.prepare('SELECT id FROM cursos WHERE usuario=?').get(uid))return fail(res,'La demostración solo se carga en cuentas sin cursos.',409);
+const cursos=[['Ingeniería de Software','Docente de ejemplo'],['Base de Datos','Docente de ejemplo'],['Gestión de Proyectos','Docente de ejemplo'],['Redes y Comunicaciones','Docente de ejemplo']];
+const tareas=[[0,'Informe de requisitos','Trabajo',0,'Alta','En proceso'],[1,'Examen de SQL','Examen',1,'Alta','Pendiente'],[2,'Cronograma del proyecto','Tarea',2,'Media','Pendiente'],[3,'Laboratorio de redes','Tarea',-2,'Alta','Pendiente'],[0,'Diagrama de casos de uso','Tarea',-4,'Media','Completado'],[1,'Modelo entidad relación','Trabajo',-3,'Alta','Completado'],[2,'Exposición de riesgos','Exposición',4,'Alta','En proceso'],[3,'Configuración de router','Tarea',6,'Baja','Pendiente'],[0,'Prototipo de interfaz','Trabajo',8,'Media','Pendiente'],[2,'Acta de constitución','Trabajo',-5,'Baja','Completado']];
+const base=fechaValida(req.body?.fecha||'')?new Date(req.body.fecha+'T12:00:00Z'):new Date();
+db.exec('BEGIN');
+try{const ids=cursos.map(c=>Number(db.prepare('INSERT INTO cursos(usuario,nombre,docente) VALUES(?,?,?)').run(uid,...c).lastInsertRowid));for(const [i,n,t,d,p,e] of tareas){const fecha=new Date(base);fecha.setUTCDate(fecha.getUTCDate()+d);db.prepare('INSERT INTO actividades(curso,nombre,tipo,fecha,prioridad,estado,descripcion) VALUES(?,?,?,?,?,?,?)').run(ids[i],n,t,fecha.toISOString().slice(0,10),p,e,'Actividad de demostración académica.')}db.exec('COMMIT');res.status(201).json({cursos:4,actividades:10})}catch(e){db.exec('ROLLBACK');throw e}
+});
+
 app.use('/api',(req,res)=>fail(res,'Ruta no encontrada',404));
 app.use(express.static(fileURLToPath(new URL('../frontend/dist/',import.meta.url))));
 app.use((err,req,res,next)=>{console.error(err);fail(res,'Error del servidor',500)});
