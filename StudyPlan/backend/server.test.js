@@ -1,0 +1,30 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {once} from 'node:events';
+process.env.STUDYPLAN_TEST_DB='1';process.env.PORT='0';process.env.NODE_ENV='test';
+const {server}=await import('./server.js');
+if(!server.listening)await once(server,'listening');
+const base='http://127.0.0.1:'+server.address().port+'/api';
+async function call(path,method='GET',body,cookie){const res=await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});return {status:res.status,data:await res.json(),cookie:res.headers.get('set-cookie')?.split(';')[0]}}
+test('Flujo académico y privacidad entre usuarios',async()=>{try{
+assert.equal((await call('/health')).status,200);
+assert.equal((await call('/cursos')).status,401);
+const a=await call('/registro','POST',{nombre:'Ana',email:'ana@example.test',password:'Password123'});assert.equal(a.status,200);assert.ok(a.cookie);
+const c=await call('/cursos','POST',{nombre:'Matemática'},a.cookie);assert.equal(c.status,201);
+const tarea={curso:c.data.id,nombre:'Examen',tipo:'Examen',fecha:'2027-02-28',prioridad:'Alta',estado:'Pendiente'};
+const t=await call('/actividades','POST',tarea,a.cookie);assert.equal(t.status,201);
+assert.equal((await call('/actividades','POST',{...tarea,fecha:'2027-02-30'},a.cookie)).status,400);
+assert.equal((await call('/actividades','GET',undefined,a.cookie)).data.length,1);
+assert.equal((await call('/actividades/'+t.data.id,'PUT',{...tarea,estado:'Completado'},a.cookie)).status,200);
+assert.equal((await call('/cursos/'+c.data.id,'DELETE',undefined,a.cookie)).status,409);
+const b=await call('/registro','POST',{nombre:'Luis',email:'luis@example.test',password:'Password123'});assert.equal(b.status,200);
+assert.equal((await call('/actividades','GET',undefined,b.cookie)).data.length,0);
+assert.equal((await call('/actividades/'+t.data.id,'DELETE',undefined,b.cookie)).status,404);
+assert.equal((await call('/cursos/'+c.data.id,'PUT',{nombre:'Otro'},b.cookie)).status,404);
+assert.equal((await call('/actividades/'+t.data.id,'DELETE',undefined,a.cookie)).status,200);
+assert.equal((await call('/cursos/'+c.data.id,'DELETE',undefined,a.cookie)).status,200);
+assert.equal((await call('/logout','POST',undefined,a.cookie)).status,200);
+assert.equal((await call('/me','GET',undefined,a.cookie)).status,401);
+assert.equal((await call('/login','POST',{email:'ana@example.test',password:'incorrecta'})).status,401);
+assert.equal((await call('/login','POST',{email:'ana@example.test',password:'Password123'})).status,200);
+}finally{await new Promise(resolve=>server.close(resolve))}});
