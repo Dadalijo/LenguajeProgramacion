@@ -1,28 +1,31 @@
-// Datos guardados en el navegador.
-const $=id=>document.getElementById(id);
-let cursos=[], tareas=[];
-try{cursos=JSON.parse(localStorage.getItem('studyplan.cursos')||'[]');tareas=JSON.parse(localStorage.getItem('studyplan.tareas')||'[]')}catch(e){console.warn(e)}
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const dateKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
-const hoy=()=>dateKey(new Date());
-const estado=t=>t.estado!=='Completado'&&t.fecha<hoy()?'Vencida':t.estado;
-const cursoNombre=id=>cursos.find(c=>c.id===id)?.nombre||'Sin curso';
-const orden=(a,b)=>a.fecha.localeCompare(b.fecha);
-let mes=new Date(), avisoTimer;
-function aviso(msg){$('aviso').textContent=msg;$('aviso').style.display='block';clearTimeout(avisoTimer);avisoTimer=setTimeout(()=>$('aviso').style.display='none',2500)}
-function guardar(){try{localStorage.setItem('studyplan.cursos',JSON.stringify(cursos));localStorage.setItem('studyplan.tareas',JSON.stringify(tareas));render();aviso('Cambios guardados')}catch(e){aviso('No se pudo guardar en el navegador')}}
-function vista(id){document.querySelectorAll('main section').forEach(s=>s.hidden=s.id!==id);document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));$('titulo').textContent=document.querySelector('[data-view="'+id+'"]').textContent}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>vista(b.dataset.view));
-function opciones(){let actual=$('filtroCurso').value;const opts=cursos.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.nombre)+'</option>').join('');$('curso').innerHTML='<option value="">Selecciona un curso</option>'+opts;$('filtroCurso').innerHTML='<option value="">Todos los cursos</option>'+opts;$('filtroCurso').value=actual}
-function fila(t){return '<div class="item"><div><strong>'+esc(t.nombre)+'</strong><p class="muted">'+esc(cursoNombre(t.curso))+' · '+esc(t.tipo)+' · '+esc(t.fecha)+'</p><p><span class="tag '+esc(t.prioridad.toLowerCase())+'">'+esc(t.prioridad)+'</span><span class="tag '+esc(estado(t).toLowerCase())+'">'+esc(estado(t))+'</span></p>'+(t.descripcion?'<p class="muted">'+esc(t.descripcion)+'</p>':'')+'</div><div class="actions"><button data-action="toggle" data-id="'+esc(t.id)+'">'+(t.estado==='Completado'?'Reabrir':'Completar')+'</button><button data-action="edit" data-id="'+esc(t.id)+'">Editar</button><button data-action="delete" data-id="'+esc(t.id)+'">Eliminar</button></div></div>'}
-function lista(){let q=$('buscar').value.toLowerCase(), c=$('filtroCurso').value, e=$('filtroEstado').value;$('listaTareas').innerHTML=tareas.filter(t=>t.nombre.toLowerCase().includes(q)&&(!c||t.curso===c)&&(!e||estado(t)===e)).sort(orden).map(fila).join('')||'<p class="muted">No hay actividades para mostrar.</p>'}
-function calendario(){let y=mes.getFullYear(),m=mes.getMonth(),first=new Date(y,m,1),offset=(first.getDay()+6)%7,n=new Date(y,m+1,0).getDate();$('mes').textContent=first.toLocaleDateString('es-PE',{month:'long',year:'numeric'});let h=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=>'<div class="weekday">'+d+'</div>').join('');for(let i=0;i<offset;i++)h+='<div></div>';for(let d=1;d<=n;d++){let key=dateKey(new Date(y,m,d));h+='<div class="day '+(key===hoy()?'today':'')+'">'+d+tareas.filter(t=>t.fecha===key).map(t=>'<span>'+esc(t.nombre)+'</span>').join('')+'</div>'}$('dias').innerHTML=h}
-function render(){opciones();let done=tareas.filter(t=>t.estado==='Completado').length, late=tareas.filter(t=>estado(t)==='Vencida').length, pending=tareas.length-done, soon=tareas.filter(t=>t.estado!=='Completado'&&t.fecha>=hoy()).sort(orden);$('resumen').innerHTML=[['Pendientes',pending],['Completadas',done],['Próximas entregas',soon.length],['Vencidas',late]].map(x=>'<div class="stat"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join('');$('proximas').innerHTML=soon.slice(0,5).map(fila).join('')||'<p class="muted">No tienes entregas próximas.</p>';$('listaCursos').innerHTML=cursos.map(c=>'<div class="item"><strong>'+esc(c.nombre)+'</strong><div class="actions"><button data-action="editCurso" data-id="'+esc(c.id)+'">Editar</button><button data-action="deleteCurso" data-id="'+esc(c.id)+'">Eliminar</button></div></div>').join('')||'<p class="muted">Registra tu primer curso.</p>';lista();calendario();let pct=tareas.length?Math.round(done/tareas.length*100):0;$('avance').innerHTML='<h2>'+pct+'%</h2><progress value="'+pct+'" max="100"></progress><p>'+done+' de '+tareas.length+' actividades completadas</p>'+cursos.map(c=>{let all=tareas.filter(t=>t.curso===c.id),num=all.filter(t=>t.estado==='Completado').length;return '<p>'+esc(c.nombre)+' · '+num+'/'+all.length+'</p><progress max="100" value="'+(all.length?num/all.length*100:0)+'"></progress>'}).join('')}
-$('cursoForm').onsubmit=e=>{e.preventDefault();let nombre=$('cursoNombre').value.trim(),id=$('cursoId').value;if(!nombre)return;if(cursos.some(c=>c.nombre.toLowerCase()===nombre.toLowerCase()&&c.id!==id)){aviso('El curso ya existe');return}if(id)cursos.find(c=>c.id===id).nombre=nombre;else cursos.push({id:uid(),nombre});$('cursoForm').reset();$('cursoId').value='';guardar()};
-$('cancelCurso').onclick=()=>{$('cursoForm').reset();$('cursoId').value=''};
-function abrir(t){if(!cursos.length){vista('cursos');aviso('Primero registra un curso');return}$('tareaForm').reset();$('tareaId').value=t?.id||'';$('nombre').value=t?.nombre||'';$('curso').value=t?.curso||cursos[0].id;$('tipo').value=t?.tipo||'Tarea';$('fecha').value=t?.fecha||hoy();$('prioridad').value=t?.prioridad||'Media';$('estado').value=t?.estado||'Pendiente';$('descripcion').value=t?.descripcion||'';$('modal').showModal()}
-$('nueva').onclick=()=>abrir();$('cerrar').onclick=()=>$('modal').close();
-$('tareaForm').onsubmit=e=>{e.preventDefault();let id=$('tareaId').value,nombre=$('nombre').value.trim();if(!nombre)return;let t={id:id||uid(),nombre,curso:$('curso').value,tipo:$('tipo').value,fecha:$('fecha').value,prioridad:$('prioridad').value,estado:$('estado').value,descripcion:$('descripcion').value.trim()};if(id)tareas=tareas.map(x=>x.id===id?t:x);else tareas.push(t);$('modal').close();guardar()};
-document.addEventListener('click',e=>{let b=e.target.closest('[data-action]');if(!b)return;let id=b.dataset.id,a=b.dataset.action,t=tareas.find(x=>x.id===id),c=cursos.find(x=>x.id===id);if(a==='edit'&&t)abrir(t);if(a==='toggle'&&t){t.estado=t.estado==='Completado'?'Pendiente':'Completado';guardar()}if(a==='delete'&&t&&confirm('¿Eliminar actividad?')){tareas=tareas.filter(x=>x.id!==id);guardar()}if(a==='editCurso'&&c){$('cursoId').value=id;$('cursoNombre').value=c.nombre;$('cursoNombre').focus()}if(a==='deleteCurso'&&c){if(tareas.some(x=>x.curso===id)){aviso('El curso tiene actividades asociadas');return}if(confirm('¿Eliminar curso?')){cursos=cursos.filter(x=>x.id!==id);if($('cursoId').value===id)$('cancelCurso').click();guardar()}}});
-$('buscar').oninput=lista;$('filtroCurso').onchange=lista;$('filtroEstado').onchange=lista;$('anterior').onclick=()=>{mes=new Date(mes.getFullYear(),mes.getMonth()-1,1);calendario()};$('siguiente').onclick=()=>{mes=new Date(mes.getFullYear(),mes.getMonth()+1,1);calendario()};render();
+// Vue 3: datos reactivos, propiedades calculadas y métodos.
+function cargar(clave){try{return JSON.parse(localStorage.getItem(clave)||'[]')}catch{return []}}
+function fechaLocal(d=new Date()){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+Vue.createApp({
+data(){return {menus:['Inicio','Cursos','Actividades','Calendario','Progreso'],pagina:'Inicio',cursos:cargar('studyplan.cursos'),tareas:cargar('studyplan.tareas'),curso:{nombre:'',docente:''},tarea:{},modal:false,mensaje:'',busqueda:'',filtroCurso:'',filtroEstado:'',mes:new Date()}},
+computed:{
+completadas(){return this.tareas.filter(t=>t.estado==='Completado').length},
+porcentaje(){return this.tareas.length?Math.round(this.completadas/this.tareas.length*100):0},
+proximas(){return this.tareas.filter(t=>t.estado!=='Completado'&&t.fecha>=fechaLocal()).sort((a,b)=>a.fecha.localeCompare(b.fecha))},
+indicadores(){return [{nombre:'Pendientes',valor:this.tareas.length-this.completadas},{nombre:'Completadas',valor:this.completadas},{nombre:'Próximas entregas',valor:this.proximas.length},{nombre:'Vencidas',valor:this.tareas.filter(t=>this.estado(t)==='Vencida').length}]},
+filtradas(){return this.tareas.filter(t=>t.nombre.toLowerCase().includes(this.busqueda.toLowerCase())&&(!this.filtroCurso||t.curso===this.filtroCurso)&&(!this.filtroEstado||this.estado(t)===this.filtroEstado)).sort((a,b)=>a.fecha.localeCompare(b.fecha))},
+tituloMes(){return this.mes.toLocaleDateString('es-PE',{month:'long',year:'numeric'})},
+dias(){const y=this.mes.getFullYear(),m=this.mes.getMonth(),inicio=(new Date(y,m,1).getDay()+6)%7,total=new Date(y,m+1,0).getDate();return [...Array(inicio).fill(null),...Array.from({length:total},(_,i)=>({numero:i+1,fecha:fechaLocal(new Date(y,m,i+1))}))]}
+},
+methods:{
+id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)},
+guardar(){try{localStorage.setItem('studyplan.cursos',JSON.stringify(this.cursos));localStorage.setItem('studyplan.tareas',JSON.stringify(this.tareas));this.mensaje='Cambios guardados.'}catch{this.mensaje='No se pudo guardar en el navegador.'}},
+nombreCurso(id){return this.cursos.find(c=>c.id===id)?.nombre||'Sin curso'},
+estado(t){return t.estado!=='Completado'&&t.fecha<fechaLocal()?'Vencida':t.estado},
+claseEstado(t){return {'Completado':'text-bg-success','Vencida':'text-bg-danger','En proceso':'text-bg-primary','Pendiente':'text-bg-secondary'}[this.estado(t)]},
+limpiarCurso(){this.curso={nombre:'',docente:''}},
+guardarCurso(){if(!this.curso.nombre)return;if(this.cursos.some(c=>c.nombre.toLowerCase()===this.curso.nombre.toLowerCase()&&c.id!==this.curso.id)){this.mensaje='El curso ya existe.';return}if(this.curso.id){this.cursos=this.cursos.map(c=>c.id===this.curso.id?{...this.curso}:c)}else this.cursos.push({...this.curso,id:this.id()});this.limpiarCurso();this.guardar()},
+eliminarCurso(c){if(this.tareas.some(t=>t.curso===c.id)){this.mensaje='El curso tiene actividades asociadas.';return}if(confirm('¿Eliminar curso?')){this.cursos=this.cursos.filter(x=>x.id!==c.id);if(this.curso.id===c.id)this.limpiarCurso();if(this.filtroCurso===c.id)this.filtroCurso='';this.guardar()}},
+nuevaTarea(t=null){if(!this.cursos.length){this.pagina='Cursos';this.mensaje='Primero registra un curso.';return}this.tarea=t?{...t}:{nombre:'',curso:this.cursos[0].id,tipo:'Tarea',fecha:fechaLocal(),prioridad:'Media',estado:'Pendiente',descripcion:''};this.modal=true},
+guardarTarea(){if(!this.tarea.nombre||!this.tarea.fecha||!this.cursos.some(c=>c.id===this.tarea.curso))return;if(this.tarea.id)this.tareas=this.tareas.map(t=>t.id===this.tarea.id?{...this.tarea}:t);else this.tareas.push({...this.tarea,id:this.id()});this.modal=false;this.guardar()},
+completar(t){t.estado=t.estado==='Completado'?'Pendiente':'Completado';this.guardar()},
+eliminarTarea(t){if(confirm('¿Eliminar actividad?')){this.tareas=this.tareas.filter(x=>x.id!==t.id);this.guardar()}},
+cambiarMes(n){this.mes=new Date(this.mes.getFullYear(),this.mes.getMonth()+n,1)},
+avanceCurso(id){const ts=this.tareas.filter(t=>t.curso===id);return ts.length?Math.round(ts.filter(t=>t.estado==='Completado').length/ts.length*100):0}
+}
+}).mount('#app');
