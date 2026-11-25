@@ -5,7 +5,7 @@ import { db } from './database.js';
 import { fileURLToPath } from 'node:url';
 const app=express();
 app.disable('x-powered-by');
-app.use(express.json({limit:'32kb'}));app.use(cookieParser());
+app.use(express.json({limit:'1mb'}));app.use(cookieParser());
 app.get('/api/health',(req,res)=>res.json({ok:true}));
 // Límite básico de intentos de autenticación por IP.
 const intentos=new Map();
@@ -44,6 +44,7 @@ db.exec('BEGIN');
 try{const ids=cursos.map(c=>Number(db.prepare('INSERT INTO cursos(usuario,nombre,docente) VALUES(?,?,?)').run(uid,...c).lastInsertRowid));for(const [i,n,t,d,p,e] of tareas){const fecha=new Date(base);fecha.setUTCDate(fecha.getUTCDate()+d);db.prepare('INSERT INTO actividades(curso,nombre,tipo,fecha,prioridad,estado,descripcion) VALUES(?,?,?,?,?,?,?)').run(ids[i],n,t,fecha.toISOString().slice(0,10),p,e,'Actividad de demostración académica.')}db.exec('COMMIT');res.status(201).json({cursos:4,actividades:10})}catch(e){db.exec('ROLLBACK');throw e}
 });
 
+app.post('/api/analisis',express.json({limit:'1mb'}),async(req,res)=>{try{const csv=req.body?.csv;if(typeof csv!=='string'||!csv.trim())return fail(res,'Selecciona un CSV válido');const respuesta=await fetch('http://127.0.0.1:5001/analizar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({csv}),signal:AbortSignal.timeout(15000)});res.status(respuesta.status).json(await respuesta.json())}catch(e){fail(res,'Motor de análisis no disponible. Inicia el servicio Python.',503)}});
 app.use('/api',(req,res)=>fail(res,'Ruta no encontrada',404));
 app.use(express.static(fileURLToPath(new URL('../frontend/dist/',import.meta.url))));
 app.use((err,req,res,next)=>{console.error(err);fail(res,'Error del servidor',500)});
