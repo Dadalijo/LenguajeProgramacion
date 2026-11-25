@@ -2,6 +2,10 @@
 from dataclasses import dataclass
 from functools import reduce
 import io
+import json
+import shutil
+import subprocess
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
@@ -20,6 +24,22 @@ def regla_riesgo(nota, asistencia):
         (True, 'Bajo', 'Mantener hábitos de estudio'),
     ]
     return next((nivel, consejo) for condicion, nivel, consejo in reglas if condicion)
+
+def inferir_lote(pares):
+    """Ejecuta Prolog cuando está instalado; en su ausencia usa reglas equivalentes."""
+    swipl = shutil.which('swipl')
+    if swipl:
+        datos = [dict(nota=float(n), asistencia=float(a)) for n,a in pares]
+        proceso = subprocess.run(
+            [swipl, '-q', '-s', str(Path(__file__).with_name('reglas.pl'))],
+            input=json.dumps(datos), capture_output=True, text=True, encoding='utf-8',
+            timeout=15, check=True
+        )
+        salida = json.loads(proceso.stdout)
+        if len(salida) != len(pares):
+            raise ValueError('Respuesta incompleta del motor Prolog.')
+        return [(x['riesgo'],x['recomendacion']) for x in salida], 'SWI-Prolog'
+    return [regla_riesgo(n,a) for n,a in pares], 'Reglas equivalentes en Python (Prolog no instalado)'
 
 @dataclass(frozen=True)
 class Registro:
@@ -52,11 +72,12 @@ class Analizador:
         total = reduce(lambda acumulado,r:acumulado+1,self.registros,0)
         grupos = self.df.groupby('estudiante',sort=True).agg(nota=('nota','mean'),asistencia=('asistencia','mean')).reset_index()
         estudiantes = []
-        for r in grupos.itertuples(index=False):
-            nivel, consejo = regla_riesgo(r.nota,r.asistencia)
+        filas = list(grupos.itertuples(index=False))
+        diagnosticos, motor_logico = inferir_lote([(r.nota,r.asistencia) for r in filas])
+        for r, (nivel, consejo) in zip(filas, diagnosticos):
             estudiantes.append(dict(estudiante=r.estudiante,nota=round(r.nota,2),asistencia=round(r.asistencia,2),riesgo=nivel,recomendacion=consejo))
         cursos = self.df.groupby('curso').nota.mean()
-        return dict(registros=total, estudiantes=len(estudiantes), promedio=round(promedio(notas),2),
+        return dict(motor_logico=motor_logico, registros=total, estudiantes=len(estudiantes), promedio=round(promedio(notas),2),
                     mediana=round(float(np.median(notas)),2), desviacion=round(float(np.std(notas)),2),
                     minimo=float(np.min(notas)), maximo=float(np.max(notas)),
                     aprobacion=round(len(aprobados)/total*100,1),
