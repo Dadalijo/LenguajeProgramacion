@@ -4,7 +4,13 @@ import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'node:crypt
 import { db } from './database.js';
 import { fileURLToPath } from 'node:url';
 const app=express();
+app.disable('x-powered-by');
 app.use(express.json({limit:'32kb'}));app.use(cookieParser());
+app.get('/api/health',(req,res)=>res.json({ok:true}));
+// Límite básico de intentos de autenticación por IP.
+const intentos=new Map();
+function limitar(req,res,next){const ahora=Date.now();for(const [k,v] of intentos)if(v.vence<=ahora)intentos.delete(k);const key=req.ip;const v=intentos.get(key)||{cantidad:0,vence:ahora+60000};v.cantidad++;intentos.set(key,v);if(v.cantidad>20)return res.status(429).json({error:'Demasiados intentos. Intenta en un minuto.'});next()}
+app.use(['/api/login','/api/registro'],limitar);
 const hash=t=>createHash('sha256').update(t).digest('hex');
 const passwordHash=(p,s)=>scryptSync(p,s,64).toString('hex');
 const text=(v,n=200)=>typeof v==='string'?v.trim().slice(0,n):'';
@@ -21,11 +27,13 @@ app.post('/api/cursos',(req,res)=>{const n=text(req.body.nombre);if(!n)return fa
 app.put('/api/cursos/:id',(req,res)=>{const n=text(req.body.nombre);if(!n)return fail(res,'Nombre obligatorio');const r=db.prepare('UPDATE cursos SET nombre=?,docente=? WHERE id=? AND usuario=?').run(n,text(req.body.docente),req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
 app.delete('/api/cursos/:id',(req,res)=>{const c=db.prepare('SELECT id FROM cursos WHERE id=? AND usuario=?').get(req.params.id,req.user.id);if(!c)return fail(res,'No encontrado',404);if(db.prepare('SELECT id FROM actividades WHERE curso=?').get(c.id))return fail(res,'El curso tiene actividades asociadas',409);db.prepare('DELETE FROM cursos WHERE id=?').run(c.id);res.json({ok:true})});
 app.get('/api/actividades',(req,res)=>res.json(db.prepare('SELECT a.* FROM actividades a JOIN cursos c ON c.id=a.curso WHERE c.usuario=? ORDER BY a.fecha').all(req.user.id)));
-function actividad(req,res){const b=req.body,n=text(b.nombre),d=text(b.fecha),c=db.prepare('SELECT id FROM cursos WHERE id=? AND usuario=?').get(Number(b.curso)||0,req.user.id);if(!c||!n||!/^\d{4}-\d{2}-\d{2}$/.test(d)||!['Tarea','Examen','Trabajo','Exposición'].includes(b.tipo)||!['Alta','Media','Baja'].includes(b.prioridad)||!['Pendiente','En proceso','Completado'].includes(b.estado)){fail(res,'Datos de actividad inválidos');return null}return [c.id,n,b.tipo,d,b.prioridad,b.estado,text(b.descripcion,1000)]}
+function fechaValida(d){if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return false;const x=new Date(d+'T00:00:00Z');return !Number.isNaN(x.getTime())&&x.toISOString().slice(0,10)===d}
+function actividad(req,res){const b=req.body||{},n=text(b.nombre),d=text(b.fecha),c=db.prepare('SELECT id FROM cursos WHERE id=? AND usuario=?').get(Number(b.curso)||0,req.user.id);if(!c||!n||!fechaValida(d)||!['Tarea','Examen','Trabajo','Exposición'].includes(b.tipo)||!['Alta','Media','Baja'].includes(b.prioridad)||!['Pendiente','En proceso','Completado'].includes(b.estado)){fail(res,'Datos de actividad inválidos');return null}return [c.id,n,b.tipo,d,b.prioridad,b.estado,text(b.descripcion,1000)]}
 app.post('/api/actividades',(req,res)=>{const v=actividad(req,res);if(!v)return;const r=db.prepare('INSERT INTO actividades(curso,nombre,tipo,fecha,prioridad,estado,descripcion) VALUES(?,?,?,?,?,?,?)').run(...v);res.status(201).json({id:Number(r.lastInsertRowid)})});
 app.put('/api/actividades/:id',(req,res)=>{const v=actividad(req,res);if(!v)return;const r=db.prepare('UPDATE actividades SET curso=?,nombre=?,tipo=?,fecha=?,prioridad=?,estado=?,descripcion=? WHERE id=? AND curso IN (SELECT id FROM cursos WHERE usuario=?)').run(...v,req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
 app.delete('/api/actividades/:id',(req,res)=>{const r=db.prepare('DELETE FROM actividades WHERE id=? AND curso IN (SELECT id FROM cursos WHERE usuario=?)').run(req.params.id,req.user.id);r.changes?res.json({ok:true}):fail(res,'No encontrado',404)});
 app.use('/api',(req,res)=>fail(res,'Ruta no encontrada',404));
 app.use(express.static(fileURLToPath(new URL('../frontend/dist/',import.meta.url))));
 app.use((err,req,res,next)=>{console.error(err);fail(res,'Error del servidor',500)});
-app.listen(process.env.PORT||3000,()=>console.log('StudyPlan API: puerto '+(process.env.PORT||3000)));
+const server=app.listen(Number(process.env.PORT||3000),()=>console.log('StudyPlan API: puerto '+server.address().port));
+export {server};
